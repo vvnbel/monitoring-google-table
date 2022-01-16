@@ -4,6 +4,7 @@ from datetime import datetime
 import functools
 import collections
 import numpy as np
+#необходимо установить pip install gspread / pip install numpy
 
 
 def main():

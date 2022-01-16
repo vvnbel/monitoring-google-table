@@ -4,16 +4,36 @@ from datetime import datetime
 import functools
 import collections
 import numpy as np
-#необходимо установить pip install gspread / pip install numpy
+from dadata import Dadata
+#необходимо установить: pip install gspread / pip install numpy / pip install Dadata
 
 
 def main():
     last = time.time()
+    count = 3
     while True:
         if time.time() - last >= 10:
             last = time.time()
             values_list_col1 = worksheet.col_values(1)
             values_list_col2 = worksheet.col_values(2)
+
+            for i in values_list_col1[2:]:
+                # в результат сохраняются строки с ИНН (i)
+                result = dadata.find_by_id("party", str(i))
+                if result:
+                    row_name_org = result[0]['value']
+                    row_address = result[0]['data']['address']['value']
+                    print(row_name_org, row_address)
+                    val_col_row = worksheet.cell(count, 3).value
+                    # когда не принимает значения с dadata то вставляет не правильно
+                    # сделать привязку по ИНН к имени и адресу
+                    worksheet.update_cell(count, 3, row_name_org)
+                    worksheet.update_cell(count, 4, row_address)
+                    count += 1
+                    if count == (len(values_list_col1) + 1):
+                        count = 3
+                    print(val_col_row)
+
 
             array_1 = np.array(save_first_list)
             array_2 = np.array(values_list_col1)
@@ -33,6 +53,15 @@ def main():
             print('вторая ячейка', values_list_col2[2:])
 
 print('START')
+
+# Dadata API:
+token = "9489708e7c8c23a62ccbd1182068f13aa12eb801"
+dadata = Dadata(token)
+#result = dadata.find_by_id("party", "4027039637")
+#print(result[0]['value'])
+#print(result[0]['data']['address']['value'])
+# Dadata API END
+
 # путь к JSON Google table
 gc = gspread.service_account(filename='test-task-338206-9fc568eb165d.json')
 # Открываем тестовую таблицу

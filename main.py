@@ -5,7 +5,11 @@ import functools
 import collections
 import numpy as np
 from dadata import Dadata
+import psycopg2
+import urllib.parse as urlparse
+import os
 #необходимо установить: pip install gspread / pip install numpy / pip install Dadata
+
 
 
 def main():
@@ -17,6 +21,7 @@ def main():
             values_list_col1 = worksheet.col_values(1)
             values_list_col2 = worksheet.col_values(2)
 
+
             for i in values_list_col1[2:]:
                 # в результат сохраняются строки с ИНН (i)
                 result = dadata.find_by_id("party", str(i))
@@ -27,7 +32,11 @@ def main():
                     val_col_row = worksheet.cell(count, 3).value
                     # когда не принимает значения с dadata то вставляет не правильно
                     # сделать привязку по ИНН к имени и адресу
-                    worksheet.update_cell(count, 3, row_name_org)
+                    if worksheet.cell(count, 3).value:
+                        worksheet.update_cell(count, 3, row_name_org)
+                        print('OK')
+                    else:
+                        print('EMPTY SLOT 3')
                     worksheet.update_cell(count, 4, row_address)
                     count += 1
                     if count == (len(values_list_col1) + 1):
@@ -53,6 +62,24 @@ def main():
             print('вторая ячейка', values_list_col2[2:])
 
 print('START')
+
+
+
+try:
+    db = psycopg2.connect(dbname="da1k16rlco7nqo", user="rorpgbnciyvrdh", password="7c11f860c1f4ef82fa7f23cd2b830ed18fb46c7ac682bbd922ebd0c2f2873e4a", host="ec2-52-211-158-144.eu-west-1.compute.amazonaws.com")
+except:
+    print("I am unable to connect to the database")
+cur = db.cursor()
+cur.execute("""select * from google_table""")
+
+rows = cur.fetchall()
+
+for row in rows:
+    print("   ", row[0])
+cur2 = db.cursor()
+cur2.execute("""insert into google_table(id, Address) values(4, '444')""")
+print(cur2)
+
 
 # Dadata API:
 token = "9489708e7c8c23a62ccbd1182068f13aa12eb801"

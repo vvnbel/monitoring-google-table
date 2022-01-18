@@ -6,10 +6,11 @@ import collections
 import numpy as np
 from dadata import Dadata
 import psycopg2
-import urllib.parse as urlparse
-import os
-#необходимо установить: pip install gspread / pip install numpy / pip install Dadata
 
+
+#необходимо установить: pip install gspread / pip install numpy / pip install Dadata / psycopg2
+# sht1 = gc.open_by_key('6937e74677ac5eb0b52f9aa61711856a5940e7d9')
+# sht2 = gc.open_by_url('https://docs.google.com/spreadsheets/d/1suZrCDCkxA4T2z67yxZFryVBsf0Qx-x1hE4BF4Ggzks')
 
 
 def main():
@@ -18,30 +19,28 @@ def main():
     while True:
         if time.time() - last >= 10:
             last = time.time()
-            values_list_col1 = worksheet.col_values(1)
-            values_list_col2 = worksheet.col_values(2)
+            values_list_col1 = worksheet.col_values(1) # список со значениями из первой колонки
+            values_list_col2 = worksheet.col_values(2) # список со значениями из второй колонки
 
-
-            for i in values_list_col1[2:]:
-                # в результат сохраняются строки с ИНН (i)
+            for i in values_list_col1[2:]: # строки с ИНН (i)
+                # в result идет массив со всей информацией по организации:
                 result = dadata.find_by_id("party", str(i))
+
                 if result:
+                    # в переменных сохраняются имя и адрес:
                     row_name_org = result[0]['value']
                     row_address = result[0]['data']['address']['value']
-                    print(row_name_org, row_address)
-                    val_col_row = worksheet.cell(count, 3).value
-                    # когда не принимает значения с dadata то вставляет не правильно
-                    # сделать привязку по ИНН к имени и адресу
-                    if worksheet.cell(count, 3).value:
-                        worksheet.update_cell(count, 3, row_name_org)
-                        print('OK')
-                    else:
-                        print('EMPTY SLOT 3')
+                    print('---------------', row_name_org, '**********', row_address, '---------------')
+                    val_col_row = worksheet.cell(count, 3).value # получение значения ячейки
+
+                    # !потом сделать привязку по ИНН к имени и адресу
+                    # обновляет значения столбцов 3 и 4 по ИНН:
+                    worksheet.update_cell(count, 3, row_name_org)
                     worksheet.update_cell(count, 4, row_address)
+
                     count += 1
                     if count == (len(values_list_col1) + 1):
                         count = 3
-                    print(val_col_row)
 
 
             array_1 = np.array(save_first_list)
@@ -58,58 +57,49 @@ def main():
                 print("есть новые изменения")
 
 
-            print('первая ячейка', values_list_col1[2:])
-            print('вторая ячейка', values_list_col2[2:])
-
 print('START')
 
 
-
+# соединение с БД:
 try:
     db = psycopg2.connect(dbname="da1k16rlco7nqo", user="rorpgbnciyvrdh", password="7c11f860c1f4ef82fa7f23cd2b830ed18fb46c7ac682bbd922ebd0c2f2873e4a", host="ec2-52-211-158-144.eu-west-1.compute.amazonaws.com")
 except:
-    print("I am unable to connect to the database")
-cur = db.cursor()
-cur.execute("""select * from google_table""")
+    print("Нет соединения с БД")
 
+
+cur = db.cursor()
+cur.execute("""select * from google_table_test_task""")
 rows = cur.fetchall()
 
-for row in rows:
-    print("   ", row[0])
 cur2 = db.cursor()
-cur2.execute("""insert into google_table(id, Address) values(4, '444')""")
-print(cur2)
+cur3 = db.cursor()
+inn_list = []
 
+for row in rows:
+    inn_list.append(row[1])
+    print("   ", row[0], "   ", row[3], "   ", row[4])
 
 # Dadata API:
 token = "9489708e7c8c23a62ccbd1182068f13aa12eb801"
 dadata = Dadata(token)
-#result = dadata.find_by_id("party", "4027039637")
-#print(result[0]['value'])
-#print(result[0]['data']['address']['value'])
 # Dadata API END
 
 # путь к JSON Google table
 gc = gspread.service_account(filename='test-task-338206-9fc568eb165d.json')
 # Открываем тестовую таблицу
 sh = gc.open("test table")
-# sht1 = gc.open_by_key('6937e74677ac5eb0b52f9aa61711856a5940e7d9')
-# sht2 = gc.open_by_url('https://docs.google.com/spreadsheets/d/1suZrCDCkxA4T2z67yxZFryVBsf0Qx-x1hE4BF4Ggzks')
 
-#
+
 worksheet = sh.get_worksheet(0)
 values_list_col1 = worksheet.col_values(1)
 save_first_list = values_list_col1
-
-# ****этот блок кода тестовый ,можно удалить***********
-
-val = worksheet.acell('A1').value
-val2 = worksheet.cell(1, 3).value
-values_list = worksheet.row_values(3)
-values_list_col = worksheet.col_values(1)
-worksheet_list = sh.worksheets() # список листов документа
 list_of_lists = worksheet.get_all_values()
-# *******************************************************
+for i in list_of_lists[2:]:
+    if i[0] not in inn_list:
+        cur2.execute(f"insert into google_table_test_task(inn, kpp, name, address) values('{i[0]}', '{i[1]}', '{i[2]}', '{i[3]}')")
+cur3.execute("DELETE FROM google_table_test_task WHERE (id = 11);")
+db.commit()
+
 
 if __name__ == "__main__":
     main()
